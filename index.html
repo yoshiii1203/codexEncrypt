@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Encryption App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 2rem;
+      background-color: #000;
+      color: #f0f0f0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    h2, h3 {
+      color: #f0f0f0;
+      margin-bottom: 0.5rem;
+    }
+
+    label {
+      margin-bottom: 2rem;
+      display: block;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 3rem auto;
+    }
+
+    select, input[type="text"], button {
+      width: 100%;
+      background-color: #111;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 0.8rem;
+      margin-bottom: 1.5rem;
+      font-size: 1rem;
+    }
+
+    textarea {
+      width: 95%;
+      background-color: #111;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 2rem;
+      font-size: 1rem;
+      resize: none;
+      min-height: 120px;
+    }
+
+    button {
+      background-color: #333;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background-color: #444;
+    }
+
+    .card {
+      background-color: #1a1a1a;
+      padding: 1.5rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(255, 255, 255, 0.05);
+      margin-bottom: 2.5rem;
+    }
+
+    .letter-map {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+      gap: 10px;
+    }
+
+    .letter-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .output-section {
+      margin-top: 2rem;
+    }
+
+    .output-box {
+      word-wrap: break-word;
+      padding: 1rem;
+      background-color: #111;
+      border-radius: 12px;
+      font-size: 1rem;
+      border: 1px solid #222;
+      margin-bottom: 1rem;
+      min-height: 120px;
+    }
+
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    @media (min-width: 768px) {
+      .container {
+        padding: 2rem 3rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>🔐 Codex Encryption</h2>
+    <br>
+
+    <label for="mode">Mode</label>
+    <select id="mode">
+      <option value="cinco">Cinco Vocales</option>
+      <option value="custom">Custom</option>
+    </select>
+
+    <div id="custom-setup" class="card" style="display: none;">
+      <h3>🛠 Custom Mapping</h3>
+      <div class="letter-map" id="letterMap"></div>
+      <div class="button-group">
+        <button onclick="saveMapping()">💾 Save</button>
+        <button onclick="clearMapping()">🗑 Clear</button>
+      </div>
+    </div>
+
+    <label for="inputText">Encrypt text</label>
+    <textarea id="inputText" placeholder="Enter text here..."></textarea>
+
+    <button onclick="encrypt()">🔐 Encrypt</button>
+
+    <div class="output-section">
+      <div class="card">
+        <h3>🔎 Output</h3>
+        <div class="output-box" id="outputText"></div>
+        <button onclick="copyOutput()">📋 Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const defaultLegend = {
+      'A': '1', 'E': '2', 'I': '3', 'Y': '3', 'H': '3',
+      'O': '4', 'U': '5', 'V': '5', 'M': '6',
+      'N': '7', 'Z': '7', 'S': '8', 'T': '9'
+    };
+
+    const retain = new Set('BCDFGJKLPQRWXY');
+    const fullAlphabet = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZÑ'];
+    const letterMapDiv = document.getElementById('letterMap');
+
+    fullAlphabet.forEach(letter => {
+      const box = document.createElement('div');
+      box.className = 'letter-box';
+      box.innerHTML = `<label>${letter}</label><input type="text" id="map_${letter}" />`;
+      letterMapDiv.appendChild(box);
+    });
+
+    function loadMapping() {
+      const saved = localStorage.getItem('customMapping');
+      if (saved) {
+        const mapping = JSON.parse(saved);
+        fullAlphabet.forEach(letter => {
+          const input = document.getElementById(`map_${letter}`);
+          input.value = mapping[letter] || '';
+        });
+      }
+    }
+
+    function saveMapping() {
+      const mapping = {};
+      fullAlphabet.forEach(letter => {
+        const val = document.getElementById(`map_${letter}`).value.trim();
+        if (val) mapping[letter] = val;
+      });
+      localStorage.setItem('customMapping', JSON.stringify(mapping));
+      alert("✅ Mapping saved!");
+    }
+
+    function clearMapping() {
+      fullAlphabet.forEach(letter => {
+        document.getElementById(`map_${letter}`).value = '';
+      });
+      localStorage.removeItem('customMapping');
+      alert("🧹 Mapping cleared.");
+    }
+
+    function encrypt() {
+      const inputRaw = document.getElementById('inputText').value.toUpperCase();
+      const input = inputRaw.replace(/\s+/g, ' ').trim();
+      const mode = document.getElementById('mode').value;
+      let legend = {};
+
+      if (mode === 'cinco') {
+        legend = defaultLegend;
+      } else {
+        fullAlphabet.forEach(letter => {
+          const val = document.getElementById(`map_${letter}`).value.trim();
+          if (val) legend[letter] = val;
+        });
+      }
+
+      let result = '';
+      for (let char of input) {
+        if (legend[char]) {
+          result += legend[char];
+        } else if (retain.has(char) || fullAlphabet.includes(char)) {
+          result += char;
+        } else {
+          result += char;
+        }
+      }
+
+      document.getElementById('outputText').innerText = result;
+    }
+
+    function copyOutput() {
+      const output = document.getElementById('outputText').innerText;
+      navigator.clipboard.writeText(output).then(() => {
+        alert("📋 Copied to clipboard!");
+      });
+    }
+
+    document.getElementById('mode').addEventListener('change', function () {
+      const isCustom = this.value === 'custom';
+      document.getElementById('custom-setup').style.display = isCustom ? 'block' : 'none';
+      if (isCustom) loadMapping();
+    });
+
+    window.onload = loadMapping;
+  </script>
+</body>
+</html>
